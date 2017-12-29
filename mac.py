@@ -60,13 +60,16 @@ class MovingAverageCrossStrategy(Strategy):
                     symbol=s
                     dt=datetime.datetime.utcnow()
                     sig_dir=""
-                    
+                    # 短期MA超过长期MA，且没有进场
                     if short_sma>long_sma and self.bought[s]=="OUT":
                         print("LONG: %s" % bar_date)
                         sig_dir='LONG'
+                        # 不去区分强度
                         signal=SignalEvent(1,symbol,dt,sig_dir,1.0)
+                        # 加入事件强度
                         self.events.put(signal)
                         self.bought[s]='LONG'
+                    #     短期MA小于长期MA，且当前有持仓
                     elif short_sma<long_sma and self.bought[s]=="LONG":
                         print("SHORT:%s" % bar_date)
                         sig_dir='EXIT'
@@ -76,9 +79,10 @@ class MovingAverageCrossStrategy(Strategy):
         
     
 if __name__=="__main__":
-   csv_dir='.'
+   csv_dir='.\\data'
    symbol_list=['AAPL']
    initial_capital=100000.0
+   # csv数据，不用模拟数据心跳
    heartbeat=0.0
    start_date=datetime.datetime(1990,1,1,0,0,0)
    backtest=Backtest(

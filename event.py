@@ -16,6 +16,7 @@ class MarketEvent(Event):
     处理接收到新的市场数据的更新
     """
     def __init__(self):
+        # 事件类型
         self.type='MARKET'
 
 class SignalEvent(Event):
@@ -26,8 +27,10 @@ class SignalEvent(Event):
     def __init__(self,strategy_id,symbol,datetime,signal_type,strength):
         self.strategy_id=strategy_id
         self.type='SIGNAL'
+        # 标的代码
         self.symbol=symbol
         self.datetime=datetime
+        # 买卖方向
         self.signal_type=signal_type
         self.strength=strength
         
@@ -66,8 +69,9 @@ class FillEvent(Event):
                      self.exchange=exchange
                      self.quantity=quantity
                      self.direction=direction
+                     # 实际执行的价格
                      self.fill_cost=fill_cost
-                     
+                     # 计算手续费
                      if commission is None:
                          self.commission=self.calculate_ib_commission()
                      else:

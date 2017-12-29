@@ -6,9 +6,12 @@ from __future__ import print_function
 
 import datetime
 from math import floor
+
+# 根据python版本决定
 try:
     import Queue as queue
 except ImportError:
+    # TODO queue
     import queue
 
 import numpy as np
@@ -17,6 +20,7 @@ import pandas as pd
 from event import FillEvent,OrderEvent
 from performance import create_sharpe_ratio,create_drawdowns
 
+# 处理从strategy类生成的signal event，然后生成order event, 最后解释fill event 更新持仓
 class Portfolio(object):
     """
     Portfolio类处理所有的持仓和市场价值，针对在每个时间点上的数据的情况
@@ -30,11 +34,11 @@ class Portfolio(object):
         self.symbol_list=self.bars.symbol_list
         self.start_date=start_date
         self.initial_capital=initial_capital
-        
+        # 持仓
         self.all_positions=self.construct_all_positions()
         self.current_positions=dict((k,v) for k,v in \
         [(s,0) for s in self.symbol_list])
-        
+        # 市值
         self.all_holdings=self.construct_all_holdings()
         self.current_holdings=self.construct_current_holdings()
     
@@ -87,6 +91,7 @@ class Portfolio(object):
         dh['total']=self.current_holdings['cash']
         
         for s in self.symbol_list:
+            # 市场价值
             market_value=self.current_positions[s]*\
             self.bars.get_latest_bar_value(s,"adj_close")
             dh[s]=market_value
@@ -123,7 +128,8 @@ class Portfolio(object):
         self.current_holdings['commission']+=fill.commission
         self.current_holdings['cash']-=(cost+fill.commission)
         self.current_holdings['total']-=(cost+fill.commission)
-    
+
+    # 处理成交Fill事件
     def update_fill(self,event):
         """
         在接收到FillEvent之后更新当前持仓和市值
@@ -131,7 +137,7 @@ class Portfolio(object):
         if event.type=='FILL':
             self.update_positions_from_fill(event)
             self.update_holdings_from_fill(event)
-    
+
     def generate_naive_order(self,signal):
         """
         简单的生成一个订单对象，固定的数量，利用信号对象，没有风险管理
@@ -142,9 +148,10 @@ class Portfolio(object):
         symbol=signal.symbol
         direction=signal.signal_type
         strength=signal.strength
-        
+        # 订单数量
         mkt_quantity=100
         cur_quantity=self.current_positions[symbol]
+        # 市价订单
         order_type='MKT'
         
         if direction=='LONG' and cur_quantity==0:
@@ -161,6 +168,7 @@ class Portfolio(object):
         """
         基于SignalEvent来生成新的订单，完成Portfolio的逻辑
         """
+        # 收到signal，生成订单
         if event.type=='SIGNAL':
             order_event=self.generate_naive_order(event)
             self.events.put(order_event)

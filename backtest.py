@@ -19,14 +19,26 @@ class Backtest(object):
     def __init__(
         self,csv_dir,symbol_list,initial_capital,
         heartbeat,start_date,data_handler,
-        execution_handler,portfolio,strategy,strat_params_list
+        execution_handler,portfolio,strategy,strat_params_list = None
     ):
+        '''
+        :param csv_dir:
+        :param symbol_list:
+        :param initial_capital:
+        :param heartbeat:
+        :param start_date:
+        :param data_handler:
+        :param execution_handler:
+        :param portfolio:
+        :param strategy:
+        :param strat_params_list:
+        '''
         self.csv_dir=csv_dir
         self.symbol_list=symbol_list
         self.initial_capital=initial_capital
         self.heartbeat=heartbeat
         self.start_date=start_date
-        
+        # 传入的是类，而非类的实例
         self.data_handler_cls=data_handler
         self.execution_handler_cls=execution_handler
         self.portfolio_cls=portfolio
@@ -38,10 +50,11 @@ class Backtest(object):
         self.orders=0
         self.fills=0
         self.num_strats=1
-        
+
         self.strat_params_list=strat_params_list
-    
-    def _generate_trading_instances(self,strategy_params_dict):
+        self._generate_trading_instances()
+
+    def _generate_trading_instances(self,strategy_params_dict=None):
         """
         从不同的类类型中生成交易实例对象
         """
@@ -58,29 +71,36 @@ class Backtest(object):
     def _run_backtest(self):
         """
         执行回测
+        外层循环跟踪系统心跳
+        内层循环检查Queue对象的事件
         """
         i=0
         while True:
             i+=1
             print(i)
+            # 更新市场数据
             if self.data_handler.continue_backtest==True:
                 self.data_handler.update_bars()
             else:
                 break
             while True:
                 try:
+                    # 获取事件
                     event=self.events.get(False)
                 except queue.Empty:
                     break
                 else:
                     if event is not None:
                         if event.type=='MARKET':
+                            # 计算信号
                             self.strategy.calculate_signals(event)
+                            # 更新持仓
                             self.portfolio.update_timeindex(event)
                         elif event.type=='SIGNAL':
                             self.signals+=1
                             self.portfolio.update_signal(event)
                         elif event.type=='ORDER':
+                            # 订单事件
                             self.orders+=1
                             self.execution_handler.execute_order(event)
                         elif event.type=='FILL':

@@ -48,6 +48,7 @@ class DataHandler(object):
         """
         返回最近的数据条目中的Open,High,Low,Close,Volume或者oi的数据
         """
+        # val_type: 数据类型
         raise NotImplementedError("Should implement get_latest_bar_value()")
     
     @abstractmethod
@@ -88,8 +89,11 @@ class HistoricCSVDataHandler(DataHandler):
         从数据路径中打开CSV文件，将它们转化为pandas的DataFrame。
         这里假设数据来自于yahoo。
         """
+        # 联合索引
         comb_index=None
+
         for s in self.symbol_list:
+            print(os.path.join(self.csv_dir,'%s.csv' % s))
             self.symbol_data[s]=pd.io.parsers.read_csv(
                 os.path.join(self.csv_dir,'%s.csv' % s),
                 header=0,index_col=0,parse_dates=True,
@@ -97,7 +101,9 @@ class HistoricCSVDataHandler(DataHandler):
                     'datetime','open','high',
                     'low','close','volume','adj_close'
                 ]
-            ).sort()
+            ).sort() #读入后进行排序
+            # TODO bug: AttributeError: 'DataFrame' object has no attribute 'sort'
+            # 对于索引进行调整
             if comb_index is None:
                 comb_index=self.symbol_data[s].index
             else:
@@ -105,10 +111,12 @@ class HistoricCSVDataHandler(DataHandler):
             
             self.latest_symbol_data[s]=[]
         for s in self.symbol_list:
+            # 数据集的索引更新为联合索引
             self.symbol_data[s]=self.symbol_data[s].reindex(
                 index=comb_index,method='pad'
             )
             self.symbol_data[s]["returns"]=self.symbol_data[s]["adj_close"].pct_change()
+            # TODO iterrows?
             self.symbol_data[s]=self.symbol_data[s].iterrows()
         
     def _get_new_bar(self,symbol):
@@ -116,6 +124,7 @@ class HistoricCSVDataHandler(DataHandler):
         从数据集返回最新的数据条目
         """
         for b in self.symbol_data[symbol]:
+            # TODO yield?
             yield b
     
     def get_latest_bar(self,symbol):
@@ -123,11 +132,13 @@ class HistoricCSVDataHandler(DataHandler):
         从最新的symbol_list中返回最新数据条目
         """
         try:
+            # 先获取数据
             bars_list=self.latest_symbol_data[symbol]
         except KeyError:
             print("That symbol is not available in the historical data")
             raise
         else:
+            # 再返回具体数据
             return bars_list[-1]
     
     def get_latest_bars(self,symbol,N=1):
@@ -164,6 +175,7 @@ class HistoricCSVDataHandler(DataHandler):
             print("That Symbol is not available in the historical data")
             raise
         else:
+            # 返回val_type列
             return getattr(bars_list[-1][1],val_type)
     
     def get_latest_bars_values(self,symbol,val_type,N=1):
@@ -184,12 +196,15 @@ class HistoricCSVDataHandler(DataHandler):
         """
         for s in self.symbol_list:
             try:
+                # TODO next
                 bar=next(self._get_new_bar(s))
             except StopIteration:
                 self.continue_backtest=False
             else:
                 if bar is not None:
                     self.latest_symbol_data[s].append(bar)
+
+        # 每一次心跳，发送MarketEvent
         self.events.put(MarketEvent())
     
             
